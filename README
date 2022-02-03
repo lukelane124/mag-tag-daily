@@ -1,0 +1,31 @@
+================================ Mag Tag Project ===============================
+~~~~~~ Goals ~~~~~~
+1. Learn about ESP32-S2
+2. Learn about e-ink displays as found on the mag-tag
+3. Create a simple view of today that I can glance at on my fridge in the morning.
+4. Learn about CircuitPython.
+
++++++++++++ TodayProject +++++++++++
+
++++++++++++++ ESP32-S2 +++++++++++++
+The ESP32 platform is extremely promising. I'd like to learn as much as I can
+about it going forward. The BLE aspect bundled with WiFi makes the ESP32 series
+a comparatively low power option for bringing networking to the embedded 
+project.
+I'd like to learn enought about it to begin incorporating ESP32 in most/all of my personal projects.
+
+++++++++++++++ E-INK +++++++++++++++
+E-ink displayes have many use cases where power is a concern. If nothing needs
+to be updated then nothing has to be updated. This power savings can be leveraged with minimal effort if done strategically.
+
+++++++++++ Circuit Python ++++++++++
+I've never used Circuit Python and find it to be an oversimplification of most
+embedded system coding efforts. However, I can't deny that it has made many
+more DIY projects practical to achieve in a Much shorter window of time.
+I'd like to become more familiar with CircuitPython in general as it has a great
+potential to help me incorporate python deeper in my workflow.
+
+================================= System Status ================================Very much a work in progress. Currently only prints a very basic summary of the
+current weather. The code seems to only work intermittently. After several sleep
+operations the system comes crashing down on itself. I haven't the time to
+investigate currently. That's my plan for later tonight.
