@@ -13,6 +13,7 @@ import sys
 
 TEXT_URL = "http://wifitest.adafruit.com/testwifi/index.html"
 JSON_QUOTES_URL = "https://www.adafruit.com/api/quotes.php"
+sleep_time = (60*6)
 
 op_count = 0
 
@@ -77,44 +78,52 @@ def quotesTask(requests):
 
 
 if __name__ == "__main__":
-    connectWifi()
-
-    magtag=MagTag()
-
-    if alarm.wake_alarm is None:
-        alarm.sleep_memory[0] = 0
-        alarm.sleep_memory[1] = 0
-    else:
-        alarm.sleep_memory[0] = alarm.sleep_memory[0] + 1
-
-    
-    pool = socketpool.SocketPool(wifi.radio)
-    requests = adafruit_requests.Session(pool, ssl.create_default_context())
+    connectFailure = False
     try:
-        quotesTask(requests)
-    except:
-        print("Unable to retrieve any quotes.")
-        alarm.sleep_memory[1] = alarm.sleep_memory[1] + 1
-
-    try:
-        weatherTask(requests, magtag)
+        connectWifi()
     except Exception as error:
-        print("Weather task failed.")
-        print(traceback.print_exception(etype=Exception, value=error, tb=None))
-        alarm.sleep_memory[1] = alarm.sleep_memory[1] + 1
+        print("Failed to connect to wifi")
+        print(traceback.print_exception(Exception, error, None))
+        connectFailure = True
 
-    
-    
+    if connectFailure is False:
+        magtag=MagTag()
 
-    count_pixels = magtag.add_text(
-    text_scale=1,
-    text_wrap=30,
-    text_maxlen = 300,
-    text_position=(100,0),
-    text_anchor_point=(0,0))
+        if alarm.wake_alarm is None:
+            alarm.sleep_memory[0] = 0
+            alarm.sleep_memory[1] = 0
+        else:
+            alarm.sleep_memory[0] = alarm.sleep_memory[0] + 1
 
-    magtag.set_text(f"Loops: {alarm.sleep_memory[0]}\tFailures: {alarm.sleep_memory[1]}", count_pixels)
+        
+        pool = socketpool.SocketPool(wifi.radio)
+        requests = adafruit_requests.Session(pool, ssl.create_default_context())
+        try:
+            quotesTask(requests)
+        except:
+            print("Unable to retrieve any quotes.")
+            alarm.sleep_memory[1] = alarm.sleep_memory[1] + 1
 
-    time_alarm = alarm.time.TimeAlarm(monotonic_time=time.monotonic() + (60))
+        try:
+            weatherTask(requests, magtag)
+        except Exception as error:
+            print("Weather task failed.")
+            print(traceback.print_exception(etype=Exception, value=error, tb=None))
+            alarm.sleep_memory[1] = alarm.sleep_memory[1] + 1
+
+        
+        
+
+        count_pixels = magtag.add_text(
+        text_scale=1,
+        text_wrap=50,
+        text_maxlen = 300,
+        text_position=(0,0),
+        text_anchor_point=(0,0))
+
+        magtag.set_text(f"Loops: {alarm.sleep_memory[0]}\tFailures: {alarm.sleep_memory[1]}\tSleepSecs: {sleep_time}\tVoltage: {magtag.peripherals.battery}", count_pixels)
+
+    # Update the weather 10 times an hour.
+    time_alarm = alarm.time.TimeAlarm(monotonic_time=time.monotonic() + sleep_time)
 
     alarm.exit_and_deep_sleep_until_alarms(time_alarm)
