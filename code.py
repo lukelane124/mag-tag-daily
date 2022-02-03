@@ -81,6 +81,12 @@ if __name__ == "__main__":
 
     magtag=MagTag()
 
+    if alarm.wake_alarm is None:
+        alarm.sleep_memory[0] = 0
+        alarm.sleep_memory[1] = 0
+    else:
+        alarm.sleep_memory[0] = alarm.sleep_memory[0] + 1
+
     
     pool = socketpool.SocketPool(wifi.radio)
     requests = adafruit_requests.Session(pool, ssl.create_default_context())
@@ -88,18 +94,17 @@ if __name__ == "__main__":
         quotesTask(requests)
     except:
         print("Unable to retrieve any quotes.")
+        alarm.sleep_memory[1] = alarm.sleep_memory[1] + 1
 
     try:
         weatherTask(requests, magtag)
-    except Exception:
-        print(traceback.print_exception())
+    except Exception as error:
         print("Weather task failed.")
+        print(traceback.print_exception(etype=Exception, value=error, tb=None))
+        alarm.sleep_memory[1] = alarm.sleep_memory[1] + 1
 
     
-    if alarm.wake_alarm is None:
-        alarm.sleep_memory[0] = 0
-    else:
-        alarm.sleep_memory[0] = alarm.sleep_memory[0] + 1
+    
 
     count_pixels = magtag.add_text(
     text_scale=1,
@@ -108,8 +113,8 @@ if __name__ == "__main__":
     text_position=(100,0),
     text_anchor_point=(0,0))
 
-    magtag.set_text(f"Count: {alarm.sleep_memory[0]}", count_pixels)
+    magtag.set_text(f"Loops: {alarm.sleep_memory[0]}\tFailures: {alarm.sleep_memory[1]}", count_pixels)
 
-    time_alarm = alarm.time.TimeAlarm(monotonic_time=time.monotonic() + (60*15))
+    time_alarm = alarm.time.TimeAlarm(monotonic_time=time.monotonic() + (60))
 
     alarm.exit_and_deep_sleep_until_alarms(time_alarm)
