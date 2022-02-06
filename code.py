@@ -1,4 +1,3 @@
-import ipaddress
 import ssl
 import wifi
 import socketpool
@@ -9,21 +8,25 @@ import alarm
 import json
 from adafruit_magtag.magtag import MagTag
 import traceback
-import sys
 
+# URL's used in this systems
 JSON_QUOTES_URL = "https://www.adafruit.com/api/quotes.php"
 TIME_URL = "http://worldtimeapi.org/api/ip"
+NWS_WEATHER_ENDPOINT = "https://api.weather.gov/gridpoints/LWX/86,83/forecast"
 
+# Time to Deep Sleep between screen updates.
+# Fairly often now but should, could be reduced to simply be fairly early on a given day.
+# Update the screen 10 times an hour.
 SLEEP_TIME = (60*6)
 
+# If we've woken up from a boards reset then reset the sleep_memory.
 if alarm.wake_alarm is None:
     alarm.sleep_memory[0] = 1
     alarm.sleep_memory[1] = 0
 else:
     alarm.sleep_memory[0] = alarm.sleep_memory[0] + 1
 
-connectFailure = False
-
+# Handle the basic wifi setup and return a socket pool and a requets handle.
 def connectWifi():
     # Get wifi details and more from a secrets.py file
     ret = [None, None]
@@ -48,7 +51,7 @@ def connectWifi():
     return ret
 
 
-
+# Get the current Unix Time Epoch (stamp) from a time server.
 def getUnixTimeStamp(requests):
     ret = 0
     try:
@@ -61,20 +64,16 @@ def getUnixTimeStamp(requests):
         print(traceback.print_exception(etype=Exception, value=error, tb=None))
         alarm.sleep_memory[1] = alarm.sleep_memory[1] + 1
     
-    return ret
+    return (ret - (5*3600))
 
-
+# Get a json object representing the current weather conditions.
 def getWeatherJson(requests):
-    url = "https://api.weather.gov/gridpoints/LWX/86,83/forecast"
-    response = requests.get(url, headers={'user-agent': 'km4lvw-MT-daily-MD/0.0.1'})
+    response = requests.get(NWS_WEATHER_ENDPOINT, headers={'user-agent': 'km4lvw-MT-daily-MD/0.0.1'})
     weather = json.loads(response.text)
     print(f"{weather=}")
-    with open("weather.json", "w") as outFile:
-        outFile.write(json.dumps(weather))
-        print(json.dumps(weather))
-        outFile.close
     return weather
 
+# Handle the gathering and subsequent display of the current weather conditions.
 def weatherTask(requests, MAGTAG):
     try:
         weather = getWeatherJson(requests)
@@ -105,7 +104,7 @@ def weatherTask(requests, MAGTAG):
         print(traceback.print_exception(etype=Exception, value=error, tb=None))
         alarm.sleep_memory[1] = alarm.sleep_memory[1] + 1
 
-
+# Get (and eventually display) a thoughtful gathering of words from some long dead soul.
 def quotesTask(requests):
     try:
         print("Fetching json from", JSON_QUOTES_URL)
@@ -116,6 +115,7 @@ def quotesTask(requests):
         print("Unable to retrieve any quotes.")
         alarm.sleep_memory[1] = alarm.sleep_memory[1] + 1
 
+# Count up and display relevant stats for this code and device.
 def printStatsTask(magtag):
     count_pixels = magtag.add_text(
     text_scale=1,
@@ -126,6 +126,7 @@ def printStatsTask(magtag):
 
     magtag.set_text(f"Loops: {alarm.sleep_memory[0]}\tFailures: {alarm.sleep_memory[1]}\tSleepSecs: {SLEEP_TIME}\tVoltage: {magtag.peripherals.battery} ", count_pixels)
 
+# Used to get the current time from a server and if out of date then update the RTC with the current wall time (Unix epoch)
 def timeTask(requests, MAGTAG):
     if alarm.sleep_memory[0] == 1:
         unixTime = getUnixTimeStamp(requests)
@@ -152,10 +153,11 @@ def timeTask(requests, MAGTAG):
     MAGTAG.set_text(string, time_pixels)
 
 
+# Main function for this module.
 def main():
     [pool, requests] = connectWifi()
     
-    if connectFailure is False:
+    if requests is not None:
         magtag=MagTag()
 
         
@@ -176,12 +178,10 @@ def main():
 
 
 if __name__ == "__main__":
-    import storage
-    storage.remount("/",False)
     main()
-    storage.remount("/",True)
 
-    # Update the weather 10 times an hour.
+    # Calculate the next wakeup time.
     time_alarm = alarm.time.TimeAlarm(monotonic_time=time.monotonic() + SLEEP_TIME)
 
+    # Configure the system for the next wakeup and turn off the processor.
     alarm.exit_and_deep_sleep_until_alarms(time_alarm)    
