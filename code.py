@@ -13,6 +13,7 @@ import traceback
 JSON_QUOTES_URL = "https://www.adafruit.com/api/quotes.php"
 TIME_URL = "http://worldtimeapi.org/api/ip"
 NWS_WEATHER_ENDPOINT = "https://api.weather.gov/gridpoints/LWX/86,83/forecast"
+TEST_ENDPOINT_URL = "http://11.11.11.131:65534"
 
 # Time to Deep Sleep between screen updates.
 # Fairly often now but should, could be reduced to simply be fairly early on a given day.
@@ -58,18 +59,21 @@ def getUnixTimeStamp(requests):
         response = requests.get(TIME_URL)
         time = json.loads(response.text)
         ret = time["unixtime"]
+        print(f"{time["unixtime"]=}")
     
     except Exception as error:
         print("Failed to get Unix Time.")
         print(traceback.print_exception(etype=Exception, value=error, tb=None))
         alarm.sleep_memory[1] = alarm.sleep_memory[1] + 1
     
-    return (ret - (5*3600))
+    return ret
 
 # Get a json object representing the current weather conditions.
 def getWeatherJson(requests):
-    response = requests.get(NWS_WEATHER_ENDPOINT, headers={'user-agent': 'km4lvw-MT-daily-MD/0.0.1'})
+    header = {'Cache-Control' : 'max-age=0', 'User-Agent': '(KM4LVW, NWS@km4lvw.com)', 'User-Agent': '(KM4LVW)<NWS@km4lvw.com>'}
+    response = requests.request('GET', url=TEST_ENDPOINT_URL, headers=header)
     weather = json.loads(response.text)
+    # response = requests.put("11.11.11.131:65534", weather)
     print(f"{weather=}")
     return weather
 
@@ -105,15 +109,23 @@ def weatherTask(requests, MAGTAG):
         alarm.sleep_memory[1] = alarm.sleep_memory[1] + 1
 
 # Get (and eventually display) a thoughtful gathering of words from some long dead soul.
-def quotesTask(requests):
+def quotesTask(requests, MAGTAG):
     try:
         print("Fetching json from", JSON_QUOTES_URL)
         response = requests.get(JSON_QUOTES_URL)
         quote = json.loads(response.text)
         print(f"Current Quote: {quote[0]["text"]}")
+        quotesPixels = magtag.add_text(
+        text_scale=1,
+        x=20,
+        y=0)
+
+        MAGTAG.set_text(f"{quote[0]["text"]}", quotesPixels)
     except:
         print("Unable to retrieve any quotes.")
         alarm.sleep_memory[1] = alarm.sleep_memory[1] + 1
+
+
 
 # Count up and display relevant stats for this code and device.
 def printStatsTask(magtag):
@@ -130,7 +142,7 @@ def printStatsTask(magtag):
 def timeTask(requests, MAGTAG):
     if alarm.sleep_memory[0] == 1:
         unixTime = getUnixTimeStamp(requests)
-        if unixTime != 0:        
+        if unixTime != 0 and unixTime is not None:        
             r = rtc.RTC()
             print(f"{r.datetime=}")
             global rtcTimeStruct
@@ -153,6 +165,9 @@ def timeTask(requests, MAGTAG):
     MAGTAG.set_text(string, time_pixels)
 
 
+def testSocket(pool):
+    pool
+
 # Main function for this module.
 def main():
     [pool, requests] = connectWifi()
@@ -160,15 +175,14 @@ def main():
     if requests is not None:
         magtag=MagTag()
 
-        
-        # pool = socketpool.SocketPool(wifi.radio)
-        # requests = adafruit_requests.Session(pool, ssl.create_default_context())
-
         print("Handling Time")
         timeTask(requests, magtag)
 
+        print("Socket Testing")
+        testSocket(pool)
+
         print("Getting Quote")
-        quotesTask(requests)
+        quotesTask(requests, magtag)
         
         print("Getting Weather")
         weatherTask(requests, magtag)
